@@ -5,13 +5,35 @@ naturel, la syntaxe se met à jour, le rendu suit.
 
 | Vue | Rôle |
 | --- | --- |
-| **Syntaxe PlantUML** (gauche) | Édition manuelle, numéros de ligne, ligne en erreur surlignée |
+| **Mes diagrammes** (barre latérale) | Bibliothèque des diagrammes sauvegardés, repliable |
+| **Syntaxe PlantUML** | Édition manuelle, numéros de ligne, ligne en erreur surlignée |
 | **Rendu** (centre) | SVG régénéré automatiquement, zoom/déplacement, export SVG et PNG |
 | **Assistant Gemini** (droite) | Conversation avec historique conservé pour enchaîner les amendements |
 
 Le diagramme courant est envoyé au modèle à chaque tour : demander « ajoute la gestion des erreurs »
-amende le diagramme existant au lieu d'en produire un nouveau. Le code et la conversation sont
-conservés dans le `localStorage`, donc un rechargement ne perd rien.
+amende le diagramme existant au lieu d'en produire un nouveau.
+
+## Bibliothèque de diagrammes
+
+Chaque diagramme est sauvegardé avec **sa syntaxe et sa conversation Gemini**. On rouvre une entrée
+et l'on reprend les amendements exactement là où on s'était arrêté, le modèle retrouvant tout le
+contexte. Le titre est déduit automatiquement de la directive `title` du diagramme, à défaut de la
+première demande faite au modèle ; un double-clic permet de le renommer.
+
+### Capacité de stockage
+
+Tout est conservé dans le `localStorage` du navigateur : rien ne quitte votre machine, mais
+l'historique est propre à ce navigateur et disparaît si vous videz les données du site.
+
+Mesuré sur une conversation réelle, **une entrée de 8 tours pèse environ 11 Ko**, soit de l'ordre de
+**450 diagrammes** dans le quota usuel de 5 Mo. Les longues séries d'amendements pèsent plus lourd,
+car chaque réponse du modèle contient le diagramme entier : comptez plutôt 50 à 100 entrées dans ce
+cas. La barre latérale affiche en permanence l'espace consommé, et si le quota est atteint
+l'application le signale explicitement au lieu de perdre les modifications en silence.
+
+Les boutons **Exporter** / **Importer** produisent et relisent un fichier JSON, pour archiver des
+diagrammes hors du navigateur ou les transférer sur une autre machine. Un import n'écrase jamais
+l'existant : les entrées reçoivent de nouveaux identifiants et s'ajoutent à la bibliothèque.
 
 ## Stack
 

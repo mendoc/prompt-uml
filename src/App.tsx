@@ -1,46 +1,28 @@
-import type { UIMessage } from "ai";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { Chat } from "./components/Chat";
 import { CodeEditor } from "./components/CodeEditor";
+import { LibraryPanel } from "./components/LibraryPanel";
 import { Preview } from "./components/Preview";
 import { useDiagram } from "./hooks/useDiagram";
+import { useLibrary } from "./hooks/useLibrary";
 import { STARTER_DIAGRAM } from "./lib/plantuml";
 import "./App.css";
 
-const CODE_KEY = "prompt-uml:code";
-const CHAT_KEY = "prompt-uml:messages";
-
-function loadCode(): string {
-  return localStorage.getItem(CODE_KEY) ?? STARTER_DIAGRAM;
-}
-
-function loadMessages(): UIMessage[] {
-  try {
-    const raw = localStorage.getItem(CHAT_KEY);
-    return raw ? (JSON.parse(raw) as UIMessage[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function App() {
-  const [code, setCode] = useState(loadCode);
-  const [initialMessages] = useState(loadMessages);
+  const library = useLibrary();
+  const [showLibrary, setShowLibrary] = useState(true);
 
-  const diagram = useDiagram(code);
-
-  const updateCode = useCallback((next: string) => {
-    setCode(next);
-    localStorage.setItem(CODE_KEY, next);
-  }, []);
-
-  const persistMessages = useCallback((messages: UIMessage[]) => {
-    localStorage.setItem(CHAT_KEY, JSON.stringify(messages));
-  }, []);
+  const active = library.active;
+  const diagram = useDiagram(active.code);
 
   return (
-    <div className="app">
+    <div className={showLibrary ? "app" : "app is-library-hidden"}>
       <header className="app-header">
+        {!showLibrary && (
+          <button type="button" className="library-toggle" onClick={() => setShowLibrary(true)}>
+            ☰ Mes diagrammes
+          </button>
+        )}
         <h1>
           Prompt<span>UML</span>
         </h1>
@@ -48,19 +30,26 @@ export default function App() {
       </header>
 
       <main className="workspace">
+        {showLibrary && <LibraryPanel library={library} onClose={() => setShowLibrary(false)} />}
+
         <section className="panel panel-editor">
           <div className="panel-toolbar">
             <span className="panel-title">Syntaxe PlantUML</span>
             <div className="toolbar-actions">
-              <button type="button" onClick={() => navigator.clipboard.writeText(code)}>
+              <button type="button" onClick={() => navigator.clipboard.writeText(active.code)}>
                 Copier
               </button>
-              <button type="button" onClick={() => updateCode(STARTER_DIAGRAM)}>
+              <button type="button" onClick={() => library.updateCode(STARTER_DIAGRAM)}>
                 Réinitialiser
               </button>
             </div>
           </div>
-          <CodeEditor value={code} onChange={updateCode} errorLine={diagram.errorLine} />
+          <CodeEditor
+            key={active.id}
+            value={active.code}
+            onChange={library.updateCode}
+            errorLine={diagram.errorLine}
+          />
         </section>
 
         <section className="panel panel-preview">
@@ -68,11 +57,14 @@ export default function App() {
         </section>
 
         <section className="panel panel-chat">
+          {/* `key` remonte le chat au changement de diagramme : useChat ne relit ses messages
+              initiaux qu'au montage. */}
           <Chat
-            currentDiagram={code}
-            onDiagramChange={updateCode}
-            initialMessages={initialMessages}
-            onMessagesChange={persistMessages}
+            key={active.id}
+            currentDiagram={active.code}
+            onDiagramChange={library.updateCode}
+            initialMessages={active.messages}
+            onMessagesChange={library.updateMessages}
           />
         </section>
       </main>
