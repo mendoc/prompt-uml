@@ -305,8 +305,98 @@
   border-color: var(--accent);
 }
 
-.chat-form button {
-  align-self: flex-end;
+.chat-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+
+.attach-button {
+  font-size: 0.75rem;
+}
+
+/* ---------- Pièces jointes ---------- */
+
+.pending-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pending-files li {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.4rem;
+  font-size: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.pending-files button {
+  margin-left: auto;
+  padding: 0 0.35rem;
+  border-color: transparent;
+  background: none;
+  color: var(--text-dim);
+  line-height: 1;
+}
+
+.file-icon {
+  flex-shrink: 0;
+  padding: 0.05rem 0.28rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #fff;
+  background: #c0392b;
+  border-radius: 3px;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-size {
+  flex-shrink: 0;
+  color: var(--text-dim);
+}
+
+.file-lost {
+  font-size: 0.68rem;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.message-file {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.35rem;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.73rem;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
+  border-radius: 5px;
+}
+
+.message.is-user .message-file {
+  background: rgb(255 255 255 / 0.18);
+}
+
+.file-error {
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.73rem;
+  color: var(--error);
+  background: color-mix(in srgb, var(--error) 12%, transparent);
+  border-radius: 6px;
 }
 
 /* ---------- Bibliothèque ---------- */

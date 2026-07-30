@@ -22,6 +22,10 @@ RÈGLES ABSOLUES :
 5. Utilise une syntaxe PlantUML valide et testée. Pas de directives exotiques ni de \`!include\` de fichiers externes.
 6. Conserve les éléments existants que l'utilisateur n'a pas demandé de changer, y compris leurs noms et alias.
 7. Réponds en français.
+8. Si l'utilisateur joint un document PDF (cahier des charges, spécification, schéma de base de
+   données, note de conception...), traite-le comme la source de vérité : appuie le diagramme sur
+   les entités, acteurs, étapes et règles qu'il contient, en réutilisant leur terminologie exacte.
+   Signale brièvement ce que le document ne permet pas de trancher plutôt que d'inventer.
 
 Si le diagramme courant est vide, crée-le de zéro en choisissant le type de diagramme le plus adapté à la demande
 (séquence, classes, cas d'utilisation, activité, composants, états, déploiement, ER...).`;

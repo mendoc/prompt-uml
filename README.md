@@ -13,6 +13,18 @@ naturel, la syntaxe se met à jour, le rendu suit.
 Le diagramme courant est envoyé au modèle à chaque tour : demander « ajoute la gestion des erreurs »
 amende le diagramme existant au lieu d'en produire un nouveau.
 
+## Contexte PDF
+
+Le bouton **📎 PDF** du panneau de conversation (ou un simple collage dans la zone de saisie) joint
+un document — cahier des charges, spécification, schéma de base de données — que Gemini lit
+nativement. Le modèle est instruit de traiter ce document comme source de vérité : il reprend les
+entités, acteurs et règles de gestion avec leur terminologie exacte, et signale ce que le document
+ne permet pas de trancher plutôt que d'inventer.
+
+Le PDF reste attaché à la conversation : après un rechargement, les amendements suivants en
+tiennent toujours compte. Limite de 10 Mo par fichier. Chaque tour renvoyant le document au modèle,
+un PDF volumineux augmente le coût en tokens.
+
 ## Bibliothèque de diagrammes
 
 Chaque diagramme est sauvegardé avec **sa syntaxe et sa conversation Gemini**. On rouvre une entrée
@@ -31,9 +43,15 @@ car chaque réponse du modèle contient le diagramme entier : comptez plutôt 50
 cas. La barre latérale affiche en permanence l'espace consommé, et si le quota est atteint
 l'application le signale explicitement au lieu de perdre les modifications en silence.
 
+Les PDF joints ne passent **pas** par le `localStorage` : un fichier d'1 Mo y pèserait ~2,7 Mo une
+fois encodé en base64 puis compté en UTF-16, soit la moitié du quota à lui seul. Ils sont rangés
+dans **IndexedDB**, dont le quota est bien plus large, et les messages persistés ne gardent qu'une
+référence `idb:<id>`, réhydratée au chargement. La jauge les compte donc séparément.
+
 Les boutons **Exporter** / **Importer** produisent et relisent un fichier JSON, pour archiver des
 diagrammes hors du navigateur ou les transférer sur une autre machine. Un import n'écrase jamais
 l'existant : les entrées reçoivent de nouveaux identifiants et s'ajoutent à la bibliothèque.
+L'export ne contient pas les PDF, seulement leur nom.
 
 ## Stack
 

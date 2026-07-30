@@ -158,6 +158,7 @@ export function LibraryPanel({ library, onClose }: Props) {
           <span className="storage-label">
             {library.entries.length} diagramme{library.entries.length > 1 ? "s" : ""} ·{" "}
             {formatBytes(library.bytesUsed)}
+            {library.attachmentBytes > 0 && ` · ${formatBytes(library.attachmentBytes)} de PDF`}
           </span>
         </div>
 

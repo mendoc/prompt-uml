@@ -58,7 +58,9 @@ export default function App() {
 
         <section className="panel panel-chat">
           {/* `key` remonte le chat au changement de diagramme : useChat ne relit ses messages
-              initiaux qu'au montage. */}
+              initiaux qu'au montage. On attend la relecture des PDF depuis IndexedDB, sinon le
+              chat monterait avec des pièces jointes vides. */}
+          {library.ready && (
           <Chat
             key={active.id}
             currentDiagram={active.code}
@@ -66,6 +68,7 @@ export default function App() {
             initialMessages={active.messages}
             onMessagesChange={library.updateMessages}
           />
+          )}
         </section>
       </main>
     </div>

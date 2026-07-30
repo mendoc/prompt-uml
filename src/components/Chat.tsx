@@ -1,6 +1,13 @@
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, type UIMessage } from "ai";
+import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useEffect, useRef, useState } from "react";
+import {
+  ACCEPTED_TYPES,
+  MAX_FILE_BYTES,
+  putAttachment,
+  readAsDataUrl,
+} from "../lib/attachments";
+import { formatBytes } from "../lib/library";
 import { extractPlantUml, stripPlantUml } from "../lib/plantuml";
 
 type Props = {
@@ -19,9 +26,14 @@ const SUGGESTIONS = [
   "Passe en diagramme d'activité",
 ];
 
+type PendingFile = FileUIPart & { bytes: number };
+
 export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessagesChange }: Props) {
   const [input, setInput] = useState("");
+  const [pending, setPending] = useState<PendingFile[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Le transport lit la valeur au moment de l'envoi : une ref évite de recréer le transport
   // à chaque frappe dans l'éditeur.
@@ -67,9 +79,52 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
 
   const submit = (text: string) => {
     const trimmed = text.trim();
-    if (!trimmed || status !== "ready") return;
-    sendMessage({ text: trimmed });
+    // Un PDF seul est un envoi valide : le modèle en tire le diagramme.
+    if ((!trimmed && pending.length === 0) || status !== "ready") return;
+
+    const files = pending.map(({ bytes: _bytes, ...part }) => part);
+    sendMessage(files.length > 0 ? { text: trimmed, files } : { text: trimmed });
+
     setInput("");
+    setPending([]);
+  };
+
+  const attach = async (fileList: FileList) => {
+    setFileError(null);
+
+    for (const file of Array.from(fileList)) {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        setFileError(`« ${file.name} » n'est pas un PDF.`);
+        continue;
+      }
+      if (file.size > MAX_FILE_BYTES) {
+        setFileError(
+          `« ${file.name} » fait ${formatBytes(file.size)} : la limite est ${formatBytes(MAX_FILE_BYTES)}.`,
+        );
+        continue;
+      }
+
+      try {
+        const dataUrl = await readAsDataUrl(file);
+        const id = crypto.randomUUID();
+
+        // Écrit avant l'envoi : le message persisté ne gardera qu'une référence vers ce contenu.
+        await putAttachment({
+          id,
+          filename: file.name,
+          mediaType: file.type,
+          dataUrl,
+          bytes: file.size,
+        });
+
+        setPending((current) => [
+          ...current,
+          { type: "file", mediaType: file.type, filename: file.name, url: dataUrl, bytes: file.size },
+        ]);
+      } catch {
+        setFileError(`Lecture de « ${file.name} » impossible.`);
+      }
+    }
   };
 
   return (
@@ -116,9 +171,21 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
 
           const visible = message.role === "assistant" ? stripPlantUml(text) : text;
           const hasDiagram = message.role === "assistant" && extractPlantUml(text) !== null;
+          const files = message.parts.filter(
+            (part): part is FileUIPart => part.type === "file",
+          );
 
           return (
             <div key={message.id} className={`message is-${message.role}`}>
+              {files.map((file, index) => (
+                <div key={index} className="message-file" title={file.filename}>
+                  <span className="file-icon" aria-hidden="true">
+                    PDF
+                  </span>
+                  <span className="file-name">{file.filename ?? "document.pdf"}</span>
+                  {!file.url && <span className="file-lost">contenu non conservé</span>}
+                </div>
+              ))}
               {visible && <div className="message-body">{visible}</div>}
               {hasDiagram && <div className="message-tag">Diagramme appliqué à l'éditeur</div>}
               {!visible && !hasDiagram && status === "streaming" && (
@@ -144,6 +211,29 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
           submit(input);
         }}
       >
+        {fileError && <p className="file-error">{fileError}</p>}
+
+        {pending.length > 0 && (
+          <ul className="pending-files">
+            {pending.map((file, index) => (
+              <li key={index}>
+                <span className="file-icon" aria-hidden="true">
+                  PDF
+                </span>
+                <span className="file-name">{file.filename}</span>
+                <span className="file-size">{formatBytes(file.bytes)}</span>
+                <button
+                  type="button"
+                  onClick={() => setPending((current) => current.filter((_, i) => i !== index))}
+                  aria-label={`Retirer ${file.filename}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -153,19 +243,53 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
               submit(input);
             }
           }}
+          onPaste={(e) => {
+            const files = e.clipboardData.files;
+            if (files.length > 0) {
+              e.preventDefault();
+              void attach(files);
+            }
+          }}
           placeholder="Décrivez ou amendez le diagramme…  (Entrée pour envoyer)"
           rows={3}
           aria-label="Message pour l'assistant"
         />
-        {status === "streaming" || status === "submitted" ? (
-          <button type="button" className="primary" onClick={stop}>
-            Arrêter
+
+        <div className="chat-form-actions">
+          <button
+            type="button"
+            className="attach-button"
+            onClick={() => fileInputRef.current?.click()}
+            title="Joindre un PDF comme contexte"
+          >
+            📎 PDF
           </button>
-        ) : (
-          <button type="submit" className="primary" disabled={!input.trim()}>
-            Envoyer
-          </button>
-        )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/pdf"
+            multiple
+            hidden
+            onChange={(e) => {
+              if (e.target.files?.length) void attach(e.target.files);
+              e.target.value = "";
+            }}
+          />
+
+          {status === "streaming" || status === "submitted" ? (
+            <button type="button" className="primary" onClick={stop}>
+              Arrêter
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="primary"
+              disabled={!input.trim() && pending.length === 0}
+            >
+              Envoyer
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
