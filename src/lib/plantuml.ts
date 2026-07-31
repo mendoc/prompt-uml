@@ -36,7 +36,8 @@ export function stripPlantUml(text: string): string {
 }
 
 export const STARTER_DIAGRAM = `@startuml
-title Exemple — décrivez votre besoin dans le panneau de droite
+skinparam Style strictuml
+title Exemple — décrivez votre besoin dans le panneau Assistant
 
 actor Utilisateur
 participant "Application" as App

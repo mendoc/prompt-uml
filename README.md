@@ -6,9 +6,17 @@ naturel, la syntaxe se met à jour, le rendu suit.
 | Vue | Rôle |
 | --- | --- |
 | **Mes diagrammes** (barre latérale) | Bibliothèque des diagrammes sauvegardés, repliable |
-| **Syntaxe PlantUML** | Édition manuelle, numéros de ligne, ligne en erreur surlignée |
+| **Assistant Gemini** | Conversation avec historique conservé pour enchaîner les amendements |
 | **Rendu** (centre) | SVG régénéré automatiquement, zoom/déplacement, export SVG et PNG |
-| **Assistant Gemini** (droite) | Conversation avec historique conservé pour enchaîner les amendements |
+| **Syntaxe PlantUML** (droite) | Édition manuelle, numéros de ligne, ligne en erreur surlignée |
+
+Les panneaux latéraux se replient — la bibliothèque par son chevron, la syntaxe par son bouton
+**Masquer** — pour laisser le rendu occuper toute la largeur. La syntaxe est repliée par défaut : le
+diagramme est la vue principale, le code s'ouvre quand on veut le retoucher à la main. Réduits tous
+les deux, l'assistant et le rendu se partagent l'écran en un tiers / deux tiers. La séparation entre
+l'assistant et le rendu se déplace à la souris — double-clic ou <kbd>Home</kbd> pour revenir au
+partage automatique, flèches gauche/droite au clavier. La disposition, largeur comprise, est
+mémorisée et se retrouve telle quelle à la visite suivante.
 
 Le diagramme courant est envoyé au modèle à chaque tour : demander « ajoute la gestion des erreurs »
 amende le diagramme existant au lieu d'en produire un nouveau.
@@ -24,6 +32,14 @@ ne permet pas de trancher plutôt que d'inventer.
 Le PDF reste attaché à la conversation : après un rechargement, les amendements suivants en
 tiennent toujours compte. Limite de 10 Mo par fichier. Chaque tour renvoyant le document au modèle,
 un PDF volumineux augmente le coût en tokens.
+
+## Dictée vocale
+
+Le bouton **🎙️ Dicter** transcrit la parole dans le champ de saisie via la Web Speech API du
+navigateur : rien ne transite par le serveur, et chaque segment reconnu s'ajoute au message sans
+l'envoyer, pour qu'on puisse relire et corriger avant de valider. La reconnaissance est réglée sur
+le français. Le bouton n'apparaît que sur les navigateurs qui exposent l'API — Chrome, Edge et
+Safari ; Firefox ne l'implémente pas.
 
 ## Bibliothèque de diagrammes
 

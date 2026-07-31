@@ -1,6 +1,7 @@
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useDictation } from "../hooks/useDictation";
 import {
   ACCEPTED_TYPES,
   MAX_FILE_BYTES,
@@ -77,10 +78,23 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages]);
 
+  // Chaque segment dicté s'ajoute au champ : l'utilisateur peut relire et corriger avant d'envoyer.
+  const appendSpoken = useCallback((spoken: string) => {
+    const clean = spoken.trim();
+    if (!clean) return;
+
+    setInput((current) => (current ? `${current.replace(/\s+$/, "")} ${clean}` : clean));
+  }, []);
+
+  const dictation = useDictation(appendSpoken);
+
   const submit = (text: string) => {
     const trimmed = text.trim();
     // Un PDF seul est un envoi valide : le modèle en tire le diagramme.
     if ((!trimmed && pending.length === 0) || status !== "ready") return;
+
+    // Envoyer clôt la dictée : laisser le micro ouvert ferait dériver le message suivant.
+    if (dictation.listening) dictation.stop();
 
     const files = pending.map(({ bytes: _bytes, ...part }) => part);
     sendMessage(files.length > 0 ? { text: trimmed, files } : { text: trimmed });
@@ -212,6 +226,7 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
         }}
       >
         {fileError && <p className="file-error">{fileError}</p>}
+        {dictation.error && <p className="file-error">{dictation.error}</p>}
 
         {pending.length > 0 && (
           <ul className="pending-files">
@@ -255,6 +270,12 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
           aria-label="Message pour l'assistant"
         />
 
+        {dictation.listening && (
+          <p className="dictation-hint" aria-live="polite">
+            {dictation.interim || "Parlez, le texte s'ajoute au message…"}
+          </p>
+        )}
+
         <div className="chat-form-actions">
           <button
             type="button"
@@ -275,6 +296,18 @@ export function Chat({ currentDiagram, onDiagramChange, initialMessages, onMessa
               e.target.value = "";
             }}
           />
+
+          {dictation.supported && (
+            <button
+              type="button"
+              className={dictation.listening ? "mic-button is-listening" : "mic-button"}
+              onClick={dictation.toggle}
+              title={dictation.listening ? "Arrêter la dictée" : "Dicter le message"}
+              aria-pressed={dictation.listening}
+            >
+              🎙️ {dictation.listening ? "Stop" : "Dicter"}
+            </button>
+          )}
 
           {status === "streaming" || status === "submitted" ? (
             <button type="button" className="primary" onClick={stop}>

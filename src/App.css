@@ -1,4 +1,6 @@
 .app {
+  /* Largeur du rail d'un panneau replié. */
+  --rail: 40px;
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -35,16 +37,60 @@
 /* ---------- Espace de travail ---------- */
 
 .workspace {
+  /* Redéfini en ligne par l'ancre de redimensionnement. */
+  --chat-col: minmax(300px, 1fr);
   flex: 1;
   display: grid;
-  grid-template-columns: 232px minmax(260px, 1fr) minmax(320px, 1.4fr) minmax(300px, 1fr);
+  /* Bibliothèque · assistant · ancre · rendu · syntaxe */
+  /* 370px : en deçà, les quatre boutons de la barre de la syntaxe ne tiennent plus. */
+  grid-template-columns: 232px var(--chat-col) 1px minmax(320px, 1.4fr) minmax(370px, 1fr);
   gap: 1px;
   background: var(--border);
   min-height: 0;
 }
 
 .app.is-library-hidden .workspace {
-  grid-template-columns: minmax(280px, 1fr) minmax(320px, 1.4fr) minmax(300px, 1fr);
+  grid-template-columns: var(--chat-col) 1px minmax(320px, 1.4fr) minmax(370px, 1fr);
+}
+
+/* Syntaxe repliée : la colonne tombe à un rail, tout l'espace repasse au rendu. */
+.app.is-editor-hidden .workspace {
+  grid-template-columns: 232px var(--chat-col) 1px minmax(320px, 1.4fr) var(--rail);
+}
+
+/* Réduit à l'assistant et au rendu : un tiers / deux tiers. */
+.app.is-library-hidden.is-editor-hidden .workspace {
+  grid-template-columns: var(--chat-col) 1px minmax(320px, 2fr) var(--rail);
+}
+
+/* ---------- Ancre de redimensionnement ---------- */
+
+.splitter {
+  position: relative;
+  background: var(--border);
+  cursor: col-resize;
+  /* Sans quoi le geste tactile ferait défiler la page au lieu de déplacer l'ancre. */
+  touch-action: none;
+}
+
+/* Zone de saisie élargie : la ligne reste fine, la cible fait 9 px. */
+.splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0 -4px;
+}
+
+.splitter:hover,
+.splitter:focus-visible,
+.app.is-resizing .splitter {
+  background: var(--accent);
+  outline: none;
+}
+
+/* Le curseur ne doit pas redevenir un I-beam en survolant le texte pendant le glissement. */
+.app.is-resizing {
+  cursor: col-resize;
+  user-select: none;
 }
 
 .library-toggle {
@@ -68,6 +114,7 @@
   border-bottom: 1px solid var(--border);
   background: var(--surface-alt);
   min-height: 40px;
+  min-width: 0;
 }
 
 .panel-title {
@@ -76,12 +123,40 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--text-dim);
+  /* À colonne étroite, c'est le titre qui cède — pas les boutons, ni la largeur du panneau. */
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* La bibliothèque a une largeur fixe : son titre tient sur deux lignes plutôt que d'être tronqué. */
+.library .panel-title {
+  white-space: normal;
+  overflow: visible;
 }
 
 .toolbar-actions {
   display: flex;
   align-items: center;
   gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+/* Largeur figée sur le plus long libellé : la barre ne doit pas sursauter au retour visuel. */
+.copy-button {
+  min-width: 5.2rem;
+  transition: color 0.15s ease;
+}
+
+.copy-button.is-done {
+  color: var(--ok);
+  border-color: currentColor;
+}
+
+.copy-button.is-failed {
+  color: var(--error);
+  border-color: currentColor;
 }
 
 .toolbar-sep {
@@ -92,6 +167,26 @@
 }
 
 /* ---------- Éditeur ---------- */
+
+/* Replié, le panneau se résume à sa barre d'outils pivotée à la verticale : le bouton reste
+   atteignable pour rouvrir la syntaxe. */
+.panel-editor.is-collapsed .panel-toolbar {
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 0.7rem;
+  height: 100%;
+  padding: 0.5rem 0.3rem;
+  border-bottom: none;
+}
+
+.panel-editor.is-collapsed .toolbar-actions {
+  order: -1;
+}
+
+.panel-editor.is-collapsed .panel-title {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+}
 
 .editor {
   flex: 1;
@@ -142,7 +237,13 @@
 .preview-canvas {
   flex: 1;
   display: grid;
+  /* `minmax(0, 1fr)` fixe la piste sur le cadre. Sans cela elle est dimensionnée par l'image,
+     le `max-height: 100%` de celle-ci se résout sur elle-même et ne contraint plus rien : un
+     grand diagramme dépassait alors du cadre. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   place-items: center;
+  padding: 12px;
   overflow: hidden;
   cursor: grab;
   touch-action: none;
@@ -308,12 +409,45 @@
 .chat-form-actions {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 0.4rem;
 }
 
-.attach-button {
+/* Les outils s'alignent à gauche, l'envoi reste collé à droite quel que soit leur nombre. */
+.chat-form-actions .primary {
+  margin-left: auto;
+}
+
+.attach-button,
+.mic-button {
   font-size: 0.75rem;
+}
+
+.mic-button.is-listening {
+  color: var(--error);
+  border-color: currentColor;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-button.is-listening {
+    animation: none;
+  }
+}
+
+.dictation-hint {
+  margin: 0;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.73rem;
+  font-style: italic;
+  color: var(--text-dim);
+  background: var(--surface-alt);
+  border-radius: 6px;
 }
 
 /* ---------- Pièces jointes ---------- */
@@ -594,14 +728,48 @@ button.danger:hover:not(:disabled) {
 /* ---------- Écrans étroits ---------- */
 
 @media (max-width: 1100px) {
-  .workspace,
-  .app.is-library-hidden .workspace {
+  .app .workspace,
+  .app.is-library-hidden .workspace,
+  .app.is-editor-hidden .workspace,
+  .app.is-library-hidden.is-editor-hidden .workspace {
     grid-template-columns: 1fr;
-    grid-auto-rows: minmax(320px, auto);
+    /* Hauteur minimale portée par les panneaux plutôt que par la piste, pour qu'un panneau
+       replié n'immobilise pas une rangée vide. */
+    grid-auto-rows: auto;
     overflow-y: auto;
+  }
+
+  .workspace .panel {
+    min-height: 320px;
+  }
+
+  /* Une seule colonne : plus rien à redimensionner. */
+  .splitter {
+    display: none;
   }
 
   .library {
     max-height: 260px;
+  }
+
+  /* En colonne unique, replier n'a plus à pivoter la barre : elle reste une simple ligne. */
+  .panel-editor.is-collapsed {
+    min-height: 0;
+  }
+
+  .panel-editor.is-collapsed .panel-toolbar {
+    flex-direction: row;
+    justify-content: space-between;
+    height: auto;
+    padding: 0.45rem 0.7rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-editor.is-collapsed .panel-title {
+    writing-mode: horizontal-tb;
+  }
+
+  .panel-editor.is-collapsed .toolbar-actions {
+    order: 0;
   }
 }

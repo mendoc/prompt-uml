@@ -1,9 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DiagramState } from "../hooks/useDiagram";
 
 type Props = {
   diagram: DiagramState;
 };
+
+const MIN_ZOOM = 0.2;
+const MAX_ZOOM = 4;
 
 export function Preview({ diagram }: Props) {
   const [zoom, setZoom] = useState(1);
@@ -14,6 +17,15 @@ export function Preview({ diagram }: Props) {
   useEffect(() => {
     setOffset({ x: 0, y: 0 });
   }, [diagram.url]);
+
+  /**
+   * Le cadre borne déjà l'image à sa taille : revenir à l'échelle 1 sans décalage suffit à
+   * réafficher le diagramme entier, hauteur et largeur comprises.
+   */
+  const fit = useCallback(() => {
+    setZoom(1);
+    setOffset({ x: 0, y: 0 });
+  }, []);
 
   const download = (format: "svg" | "png") => {
     if (!diagram.svg) return;
@@ -58,13 +70,21 @@ export function Preview({ diagram }: Props) {
           {diagram.status === "error" && <span className="badge is-error">Erreur de syntaxe</span>}
         </div>
         <div className="toolbar-actions">
-          <button type="button" onClick={() => setZoom((z) => Math.max(0.2, z - 0.15))} title="Dézoomer">
+          <button
+            type="button"
+            onClick={() => setZoom((z) => Math.max(MIN_ZOOM, z - 0.15))}
+            title="Dézoomer"
+          >
             −
           </button>
-          <button type="button" onClick={() => { setZoom(1); setOffset({ x: 0, y: 0 }); }} title="Réinitialiser">
+          <button type="button" onClick={fit} title="Ajuster le diagramme au cadre">
             {Math.round(zoom * 100)}%
           </button>
-          <button type="button" onClick={() => setZoom((z) => Math.min(4, z + 0.15))} title="Zoomer">
+          <button
+            type="button"
+            onClick={() => setZoom((z) => Math.min(MAX_ZOOM, z + 0.15))}
+            title="Zoomer"
+          >
             +
           </button>
           <span className="toolbar-sep" />
@@ -93,7 +113,7 @@ export function Preview({ diagram }: Props) {
         onWheel={(e) => {
           if (!e.ctrlKey && !e.metaKey) return;
           e.preventDefault();
-          setZoom((z) => Math.min(4, Math.max(0.2, z - e.deltaY * 0.002)));
+          setZoom((z) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z - e.deltaY * 0.002)));
         }}
       >
         {diagram.url ? (
