@@ -67,7 +67,13 @@ export function Preview({ diagram }: Props) {
         <div className="preview-status">
           {diagram.status === "rendering" && <span className="badge is-pending">Rendu…</span>}
           {diagram.status === "ok" && <span className="badge is-ok">À jour</span>}
-          {diagram.status === "error" && <span className="badge is-error">Erreur de syntaxe</span>}
+          {diagram.status === "error" && (
+            <span className="badge is-error">
+              {/* Annoncer « syntaxe » sur une panne réseau enverrait chercher un bug inexistant
+                  dans le diagramme. */}
+              {diagram.errorKind === "transport" ? "Rendu indisponible" : "Erreur de syntaxe"}
+            </span>
+          )}
         </div>
         <div className="toolbar-actions">
           <button
@@ -86,6 +92,20 @@ export function Preview({ diagram }: Props) {
             title="Zoomer"
           >
             +
+          </button>
+          <span className="toolbar-sep" />
+          <button
+            type="button"
+            className={
+              diagram.status === "rendering" ? "refresh-button is-busy" : "refresh-button"
+            }
+            onClick={diagram.refresh}
+            title="Regénérer le rendu depuis la syntaxe courante"
+            aria-label="Regénérer le rendu"
+          >
+            <span className="refresh-icon" aria-hidden="true">
+              ↻
+            </span>
           </button>
           <span className="toolbar-sep" />
           <button type="button" onClick={() => download("svg")} disabled={!diagram.svg}>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type DiagramState = {
   url: string | null;
@@ -6,7 +6,13 @@ export type DiagramState = {
   status: "idle" | "rendering" | "ok" | "error";
   error: string | null;
   errorLine: number | null;
+  /** `syntax` quand PlantUML rejette le code, `transport` quand le serveur n'a pas répondu. */
+  errorKind: "syntax" | "transport" | null;
+  /** Relance le rendu du code courant, même inchangé. */
+  refresh: () => void;
 };
+
+type RenderState = Omit<DiagramState, "refresh">;
 
 const DEBOUNCE_MS = 500;
 
@@ -16,28 +22,47 @@ const DEBOUNCE_MS = 500;
  * suivre la frappe (ou le streaming du modèle) sans saturer le serveur PlantUML.
  */
 export function useDiagram(code: string): DiagramState {
-  const [state, setState] = useState<DiagramState>({
+  const [state, setState] = useState<RenderState>({
     url: null,
     svg: null,
     status: "idle",
     error: null,
     errorLine: null,
+    errorKind: null,
   });
 
   const urlRef = useRef<string | null>(null);
+  // Dernier code envoyé au serveur : sert à distinguer une frappe d'une relance manuelle.
+  const sentRef = useRef<string | null>(null);
+  const [nonce, setNonce] = useState(0);
+
+  const refresh = useCallback(() => setNonce((current) => current + 1), []);
 
   useEffect(() => {
     const trimmed = code.trim();
 
     if (!trimmed) {
-      setState({ url: null, svg: null, status: "idle", error: null, errorLine: null });
+      setState({
+        url: null,
+        svg: null,
+        status: "idle",
+        error: null,
+        errorLine: null,
+        errorKind: null,
+      });
       return;
     }
 
     const controller = new AbortController();
     setState((prev) => ({ ...prev, status: "rendering" }));
 
+    // Relancer un code déjà envoyé ne peut venir que d'une demande explicite : inutile
+    // d'attendre le debounce, qui n'existe que pour absorber la frappe.
+    const delay = trimmed === sentRef.current ? 0 : DEBOUNCE_MS;
+
     const timer = setTimeout(async () => {
+      sentRef.current = trimmed;
+
       try {
         const response = await fetch("/api/render", {
           method: "POST",
@@ -54,6 +79,7 @@ export function useDiagram(code: string): DiagramState {
             status: "error",
             error: payload.error ?? `Erreur ${response.status}`,
             errorLine: null,
+            errorKind: "transport",
           });
           return;
         }
@@ -75,6 +101,7 @@ export function useDiagram(code: string): DiagramState {
           status: diagramError ? "error" : "ok",
           error: diagramError,
           errorLine: Number.isNaN(errorLine as number) ? null : errorLine,
+          errorKind: diagramError ? "syntax" : null,
         });
       } catch (cause) {
         if (controller.signal.aborted) return;
@@ -84,15 +111,16 @@ export function useDiagram(code: string): DiagramState {
           status: "error",
           error: cause instanceof Error ? cause.message : String(cause),
           errorLine: null,
+          errorKind: "transport",
         });
       }
-    }, DEBOUNCE_MS);
+    }, delay);
 
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [code]);
+  }, [code, nonce]);
 
   useEffect(() => {
     return () => {
@@ -100,5 +128,5 @@ export function useDiagram(code: string): DiagramState {
     };
   }, []);
 
-  return state;
+  return { ...state, refresh };
 }

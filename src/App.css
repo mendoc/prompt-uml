@@ -159,6 +159,33 @@
   border-color: currentColor;
 }
 
+/* Le pictogramme tourne pendant le rendu : la relance a un retour visuel même quand le
+   diagramme régénéré est identique au précédent. */
+.refresh-icon {
+  display: inline-block;
+  line-height: 1;
+}
+
+.refresh-button.is-busy {
+  color: var(--accent);
+}
+
+.refresh-button.is-busy .refresh-icon {
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-button.is-busy .refresh-icon {
+    animation: none;
+  }
+}
+
 .toolbar-sep {
   width: 1px;
   height: 18px;
